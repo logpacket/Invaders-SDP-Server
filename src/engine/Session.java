@@ -1,52 +1,97 @@
 package engine;
 
-import core.Main;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import engine.event.Body;
 import engine.event.Event;
 import engine.event.EventDispatcher;
+import engine.event.EventHandler;
+import message.Error;
+import lombok.Getter;
 import middleware.LoggingMiddleware;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.hibernate.StatelessSession;
+import org.hibernate.Transaction;
+import org.hibernate.exception.ConstraintViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.Random;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.Set;
 
 public class Session implements Runnable {
     private final Socket socket;
-    private final Logger logger = Main.getLogger();
+    private final Logger logger = LoggerFactory.getLogger(Session.class);
     private final Random random = new Random();
+    @Getter
     private final long id = random.nextLong();
-    private ObjectInputStream ois;
-    public ObjectOutputStream oos;
+    @Getter
+    private final StatelessSession dbSession;
+    private EventDispatcher eventDispatcher;
+    private ObjectMapper mapper;
+    private BufferedReader reader;
+    private BufferedWriter writer;
 
 
-    public Session(Socket socket) {
+    public Session(
+        Socket socket,
+        StatelessSession dbSession,
+        Map<String, EventHandler> eventHandlers,
+        Set<Class<? extends Body>> bodyClasses
+    ) {
         this.socket = socket;
+        this.dbSession = dbSession;
         try {
-            this.ois = new ObjectInputStream(socket.getInputStream());
-            this.oos = new ObjectOutputStream(socket.getOutputStream());
+            this.reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+            this.writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
+
+            mapper = new ObjectMapper();
+            mapper.disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
+            mapper.disable(JsonParser.Feature.AUTO_CLOSE_SOURCE);
+
+            eventDispatcher = new EventDispatcher();
+
+            eventHandlers.forEach(eventDispatcher::addHandler);
+            bodyClasses.forEach(bodyClass -> mapper.registerSubtypes(bodyClass));
         }
         catch (IOException e) {
-            logger.log(Level.WARNING, "Couldn't initialize client session.", e);
+            logger.warn("Couldn't initialize client session.", e);
         }
     }
 
     @Override
     public void run() {
         InetSocketAddress socketAddress = (InetSocketAddress) socket.getRemoteSocketAddress();
-        logger.log(Level.INFO, "Client connected: {}", socketAddress.getAddress());
-        EventDispatcher eventDispatcher = new EventDispatcher();
-        Server.EVENT_HANDLERS.forEach(eventDispatcher::addHandler);
+        logger.info("Client connected: {}", socketAddress.getAddress());
         eventDispatcher.useMiddleware(new LoggingMiddleware());
         try {
-            while(socket.isConnected()) {
-                Event event = (Event) ois.readObject();
-                eventDispatcher.dispatch(this, event);
+            while(!socket.isClosed()) {
+                if (reader.ready()) {
+                    Event event = mapper.readValue(reader, Event.class);
+                    dbSession.beginTransaction();
+                    eventDispatcher.dispatch(this, event);
+                    dbSession.getTransaction().commit();
+                }
             }
         }
-        catch (ClassNotFoundException | IOException e) {
-            logger.log(Level.WARNING, "Couldn't handle client request", e);
+        catch (IOException e) {
+            logger.warn("Couldn't handle client request", e);
+        }
+        catch (Exception e) {
+            logger.warn("Unexpected exception: ", e);
+        }
+        finally {
+            logger.info("Client disconnected: {}", socketAddress.getAddress());
+            try {
+                socket.close();
+            } catch (IOException e) {
+                logger.warn("Couldn't close client socket", e);
+            }
         }
     }
 
@@ -54,5 +99,16 @@ public class Session implements Runnable {
         return socket.getRemoteSocketAddress().toString();
     }
 
-    public long getId() { return id; }
+    public void sendEvent(Body body, String eventName, Status status) {
+        Event event = new Event(eventName, body, status, System.currentTimeMillis());
+        try{
+            if (!eventName.equals("ping"))
+                logger.info("Sending event: {}", eventName);
+            mapper.writeValue(writer, event);
+        }
+        catch (IOException e) {
+            logger.warn("Couldn't serialize event to JSON", e);
+        }
+    }
+
 }

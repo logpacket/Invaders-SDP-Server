@@ -1,9 +1,10 @@
 package engine.event;
 
-import java.io.Serializable;
+import engine.Status;
 
 public record Event (
     String name,
-    Record body,
+    Body body,
+    Status status,
     long timestamp
-) implements Serializable { }
+) { }

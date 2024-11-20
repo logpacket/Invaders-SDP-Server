@@ -20,7 +20,6 @@ public class MiddlewareManager {
     private static class MiddlewareExecutor {
         private final List<Consumer<EventContext>> chain;
         private final Runnable finalHandler;
-        private int index = 0;
 
         public MiddlewareExecutor(List<Consumer<EventContext>> chain, Runnable finalHandler) {
             this.chain = chain;
@@ -28,12 +27,10 @@ public class MiddlewareManager {
         }
 
         public void execute(EventContext context) {
-            if (index < chain.size()) {
-                Consumer<EventContext> currentMiddleware = chain.get(index++);
-                currentMiddleware.accept(context);
-            } else {
-                finalHandler.run();
+            for (Consumer<EventContext> middleware : chain) {
+                middleware.accept(context);
             }
+            finalHandler.run();
         }
     }
 }

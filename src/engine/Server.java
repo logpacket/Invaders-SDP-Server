@@ -8,49 +8,66 @@ import java.net.Socket;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
-import core.Main;
+import engine.event.Body;
 import engine.event.EventHandler;
-import engine.event.EventType;
+import engine.event.Handle;
+import jakarta.persistence.Entity;
+import org.hibernate.SessionFactory;
+import org.hibernate.boot.MetadataSources;
+import org.hibernate.boot.registry.StandardServiceRegistry;
+import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
+import org.hibernate.cfg.Configuration;
 import org.reflections.Reflections;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class Server {
-    public static final Map<String, EventHandler> EVENT_HANDLERS = new HashMap<>();
-    private final Logger logger;
+    private final Map<String, EventHandler> eventHandlers = new HashMap<>();
+    private Set<Class<? extends Body>> bodyClasses;
+    private final Logger logger = LoggerFactory.getLogger(Server.class);
 
     public Server() {
-        this.logger = Main.getLogger();
-        Reflections reflections = new Reflections("handler");
+        Reflections handlerReflections = new Reflections("handler");
+        Reflections bodyReflections = new Reflections("message");
 
         try {
-            for (Class<?> handlerClass : reflections.getTypesAnnotatedWith(EventType.class)){
+            for (Class<?> handlerClass : handlerReflections.getTypesAnnotatedWith(Handle.class)){
                 final Constructor<?> constructor = handlerClass.getDeclaredConstructor();
                 constructor.setAccessible(true);
                 EventHandler handler = (EventHandler) constructor.newInstance();
-                String eventName = handlerClass.getAnnotation(EventType.class).value();
-                EVENT_HANDLERS.put(eventName, handler);
+                String eventName = handlerClass.getAnnotation(Handle.class).value();
+                eventHandlers.put(eventName, handler);
             }
+            bodyClasses = bodyReflections.getSubTypesOf(Body.class);
         }
         catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-            logger.log(Level.WARNING, "Could not initialize eventHandler", e);
+            logger.warn("Could not initialize eventHandler", e);
         }
         startServer();
     }
 
     public void startServer() {
+        Reflections entityReflections = new Reflections("entity");
+        Set<Class<?>> entityClasses = entityReflections.getTypesAnnotatedWith(Entity.class);
         try (
             ServerSocket serverSocket = new ServerSocket(1105);
-            ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()
+            ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+            StandardServiceRegistry registry = new StandardServiceRegistryBuilder().build();
+            SessionFactory sessionFactory = new MetadataSources(registry)
+                    .addAnnotatedClasses(entityClasses.toArray(Class[]::new))
+                    .buildMetadata()
+                    .buildSessionFactory()
         ) {
-            while(true) {
+            logger.info("Server started");
+            while(serverSocket.isBound()) {
                 Socket socket = serverSocket.accept();
-                executor.submit(new Session(socket));
+                executor.submit(new Session(socket, sessionFactory.openStatelessSession(), eventHandlers, bodyClasses));
             }
         }
         catch (IOException e) {
-            logger.log(Level.WARNING, "Could not initialize server", e);
+            logger.warn("Could not initialize server", e);
         }
     }
+
 }
