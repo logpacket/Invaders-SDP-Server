@@ -29,7 +29,6 @@
 
 # Gradle
 .idea/**/gradle.xml
-.idea/**/libraries
 
 # Gradle and Maven with auto-import
 # When using Gradle or Maven with auto-import, you should exclude module files,
@@ -41,8 +40,9 @@
 # .idea/modules.xml
 # .idea/*.iml
 # .idea/modules
-# *.iml
+# *.imls
 # *.ipr
+# .idea/dataSources.xml
 
 # CMake
 cmake-build-*/
