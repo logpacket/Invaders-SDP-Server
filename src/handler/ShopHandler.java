@@ -44,9 +44,38 @@ public class ShopHandler implements EventHandler {
 
             // 성공적인 처리 후 응답을 보냅니다.
             session.sendEvent(null, "shop", Status.OK);
+
         } catch (Exception e) {
             logger.warn("Error in processing shop data: {}", e.getMessage());
             session.sendEvent(new Error(e.getMessage()), "shop", Status.DB_FAILED);
         }
     }
+
+    // 서버에서 Shop 데이터를 불러오는 메서드
+    private Shop loadShop(Session session, String username) {
+        StatelessSession dbSession = session.getDbSession();
+
+        try {
+            Query<Shop> query = dbSession.createQuery("FROM Shop WHERE username = :username", Shop.class);
+            query.setParameter("username", username);
+            return query.uniqueResult();  // Shop 객체를 반환
+        } catch (Exception e) {
+            logger.error("Error loading Shop for username {}: {}", username, e.getMessage());
+            return null;
+        }
+    }
+
+    // 서버에 Shop 데이터를 저장하는 메서드
+    private void saveShopToServer(Session session, Shop shop) {
+        StatelessSession dbSession = session.getDbSession();
+
+        try {
+            // Update the Shop entity in the database.
+            dbSession.update(shop);  // `flush()`는 StatelessSession에서 필요하지 않습니다.
+            logger.info("Shop data has been successfully saved.");
+        } catch (Exception e) {
+            logger.error("Error saving Shop data: {}", e.getMessage());
+        }
+    }
+
 }
