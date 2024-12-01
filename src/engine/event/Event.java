@@ -1,10 +1,10 @@
 package engine.event;
 
-import engine.Status;
+import java.util.UUID;
 
 public record Event (
     String name,
     Body body,
-    Status status,
+    UUID id,
     long timestamp
 ) { }

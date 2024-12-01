@@ -6,13 +6,12 @@ import engine.event.Body;
 import engine.event.Event;
 import engine.event.EventDispatcher;
 import engine.event.EventHandler;
+import lombok.Setter;
 import message.Error;
 import lombok.Getter;
 import middleware.LoggingMiddleware;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.hibernate.StatelessSession;
-import org.hibernate.Transaction;
-import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,15 +20,15 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
+import java.util.UUID;
 
 public class Session implements Runnable {
     private final Socket socket;
     private final Logger logger = LoggerFactory.getLogger(Session.class);
-    private final Random random = new Random();
     @Getter
-    private final long id = random.nextLong();
+    @Setter
+    private long id;
     @Getter
     private final StatelessSession dbSession;
     private EventDispatcher eventDispatcher;
@@ -99,8 +98,8 @@ public class Session implements Runnable {
         return socket.getRemoteSocketAddress().toString();
     }
 
-    public void sendEvent(Body body, String eventName, Status status) {
-        Event event = new Event(eventName, body, status, System.currentTimeMillis());
+    public void sendEvent(Body body, String eventName, UUID id) {
+        Event event = new Event(eventName, body, id, System.currentTimeMillis());
         try{
             if (!eventName.equals("ping"))
                 logger.info("Sending event: {}", eventName);
