@@ -2,6 +2,9 @@ package engine.event;
 
 import engine.Session;
 import engine.MiddlewareManager;
+import message.Error;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -11,6 +14,7 @@ import java.util.function.Consumer;
 public class EventDispatcher {
     private final Map<String, EventHandler> handlerByEventType = new HashMap<>();
     private final MiddlewareManager middleware = new MiddlewareManager();
+    Logger logger = LoggerFactory.getLogger(EventDispatcher.class);
 
     public void addHandler(String eventName, EventHandler eventHandler) {
         handlerByEventType.put(eventName, eventHandler);
@@ -33,10 +37,16 @@ public class EventDispatcher {
     }
 
     public void dispatch(Session session, Event event) {
-        EventHandler handler = handlerByEventType.get(event.name());
+        String eventName = event.name();
+        EventHandler handler = handlerByEventType.get(eventName);
         if (handler != null) {
             EventContext context = new EventContext(session, event);
-            middleware.process(context, () -> handler.handle(context));
+            try {
+                middleware.process(context, () -> handler.handle(context));
+            } catch (Exception e) {
+                logger.warn("Error in {} handler\n message: {}", eventName, e.getMessage());
+                session.sendEvent(new Error(e.getMessage()), eventName, event.id());
+            }
         }
     }
 
