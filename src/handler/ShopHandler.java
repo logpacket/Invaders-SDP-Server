@@ -40,12 +40,56 @@ public class ShopHandler implements EventHandler {
             }
 
             session.sendEvent(null, event.name(), event.id());
-        } catch (NoResultException e) {
-            logger.warn("No Shop found for username: {}", shopMessage.username());
-            session.sendEvent(new Error("No Shop data found"), event.name(), event.id());
         } catch (Exception e) {
             logger.error("Error handling shop event: {}", e.getMessage());
             session.sendEvent(new Error("Error processing shop data"), event.name(), event.id());
+        }
+    }
+
+    public message.Shop loadShop(Session session, String username) {
+        StatelessSession dbSession = session.getDbSession();
+        try {
+            Query<Shop> query = dbSession.createQuery("FROM Shop WHERE username = :username", Shop.class);
+            query.setParameter("username", username);
+            Shop shopEntity = query.uniqueResult();
+
+            if (shopEntity != null) {
+                return new message.Shop(
+                        shopEntity.getUsername(),
+                        shopEntity.getCoin(),
+                        shopEntity.getBulletLevel(),
+                        shopEntity.getShootLevel(),
+                        shopEntity.getLivesLevel(),
+                        shopEntity.getCoinLevel()
+                );
+            } else {
+                logger.info("No shop data found for username: {}", username);
+                return null;
+            }
+        } catch (Exception e) {
+            logger.error("Error loading shop data for username {}: {}", username, e.getMessage());
+            return null;
+        }
+    }
+
+    public void saveShopToServer(Session session, message.Shop shopMessage) {
+        StatelessSession dbSession = session.getDbSession();
+        try {
+            Query<Shop> query = dbSession.createQuery("FROM Shop WHERE username = :username", Shop.class);
+            query.setParameter("username", shopMessage.username());
+            Shop existingShop = query.uniqueResult();
+
+            if (existingShop == null) {
+                Shop newShopEntity = new Shop(shopMessage);
+                dbSession.insert(newShopEntity);
+                logger.info("New Shop created: {}", newShopEntity);
+            } else {
+                existingShop.updateFromMessage(shopMessage);
+                dbSession.update(existingShop);
+                logger.info("Shop updated: {}", existingShop);
+            }
+        } catch (Exception e) {
+            logger.error("Error saving shop data for username {}: {}", shopMessage.username(), e.getMessage());
         }
     }
 }
