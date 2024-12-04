@@ -3,6 +3,7 @@ package entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import message.Wallet;
 
 @Getter
 @NoArgsConstructor
@@ -14,7 +15,7 @@ public class Shop {
     private Long id;
 
     @Column(nullable = false)
-    private String username;  // username 추가
+    private long userId;
 
     @Column(nullable = false)
     private int coin;
@@ -31,20 +32,20 @@ public class Shop {
     @Column(nullable = false)
     private int coinLevel;
 
-    public Shop(message.Shop shopMessage) {
-        this.username = shopMessage.username();  // username 초기화
-        this.coin = shopMessage.coin();
-        this.bulletLevel = shopMessage.bulletLevel();
-        this.shootLevel = shopMessage.shootLevel();
-        this.livesLevel = shopMessage.livesLevel();
-        this.coinLevel = shopMessage.coinLevel();
+    public Shop(Wallet walletMessage, long userId) {
+        this.coin = walletMessage.coin();
+        this.bulletLevel = walletMessage.bulletLevel();
+        this.shootLevel = walletMessage.shootLevel();
+        this.livesLevel = walletMessage.livesLevel();
+        this.coinLevel = walletMessage.coinLevel();
+        this.userId = userId;
     }
 
-    public void updateFromMessage(message.Shop shopMessage) {
-        this.coin = shopMessage.coin();
-        this.bulletLevel = shopMessage.bulletLevel();
-        this.shootLevel = shopMessage.shootLevel();
-        this.livesLevel = shopMessage.livesLevel();
-        this.coinLevel = shopMessage.coinLevel();
+    public void updateFromMessage(Wallet walletMessage) {
+        this.coin = walletMessage.coin();
+        this.bulletLevel = walletMessage.bulletLevel();
+        this.shootLevel = walletMessage.shootLevel();
+        this.livesLevel = walletMessage.livesLevel();
+        this.coinLevel = walletMessage.coinLevel();
     }
 }
