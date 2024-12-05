@@ -22,14 +22,53 @@ public class ShopHandler implements EventHandler {
         Session session = eventContext.session();
         StatelessSession dbSession = session.getDbSession();
         Event event = eventContext.event();
+
         Wallet walletMessage = (Wallet) event.body();
+        if (walletMessage == null) {
+            try {
+                Shop existingShop = getShopById(dbSession, session.getId());
+                Wallet responseWallet;
+
+                if (existingShop == null) {
+                    Shop newShopEntity = new Shop(
+                            new Wallet(0, 1, 1, 1, 1),
+                            session.getId()
+                    );
+                    dbSession.insert(newShopEntity);
+                    responseWallet = new Wallet(
+                            newShopEntity.getCoin(),
+                            newShopEntity.getBulletLevel(),
+                            newShopEntity.getShootLevel(),
+                            newShopEntity.getLivesLevel(),
+                            newShopEntity.getCoinLevel()
+                    );
+                } else {
+                    responseWallet = new Wallet(
+                            existingShop.getCoin(),
+                            existingShop.getBulletLevel(),
+                            existingShop.getShootLevel(),
+                            existingShop.getLivesLevel(),
+                            existingShop.getCoinLevel()
+                    );
+                }
+
+                session.sendEvent(responseWallet, event.name(), event.id());
+            } catch (Exception e) {
+                logger.error("Error handling shop event: {}", e.getMessage());
+                session.sendEvent(new Error("Error processing shop data"), event.name(), event.id());
+            }
+            return;
+        }
 
         try {
             Shop existingShop = getShopById(dbSession, session.getId());
             Wallet responseWallet;
 
             if (existingShop == null) {
-                Shop newShopEntity = new Shop(walletMessage, session.getId());
+                Shop newShopEntity = new Shop(
+                        walletMessage,
+                        session.getId()
+                );
                 dbSession.insert(newShopEntity);
                 responseWallet = new Wallet(
                         newShopEntity.getCoin(),
