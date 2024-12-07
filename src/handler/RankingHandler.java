@@ -5,47 +5,40 @@ import engine.event.Event;
 import engine.event.EventContext;
 import engine.event.EventHandler;
 import engine.event.Handle;
-import message.Ranking;
-import message.RankingListResponse;
+import entity.Ranking;
+import message.HighScore;
+import message.RankingList;
+import org.hibernate.StatelessSession;
 
-import java.util.ArrayList;
 import java.util.List;
 
-@Handle("fetchRankings") // 이벤트 타입 지정
+@Handle("ranking") // 이벤트 타입 지정
 public class RankingHandler implements EventHandler {
-
-    private static final List<Ranking> rankings = new ArrayList<>();
 
     @Override
     public void handle(EventContext eventContext) {
         Session session = eventContext.session();
+        StatelessSession dbSession = session.getDbSession();
         Event event = eventContext.event();
 
-        if ("fetchRankings".equals(event.name())) {
-            // 클라이언트가 요청한 데이터를 반환
-            RankingListResponse response = new RankingListResponse(rankings);
-            session.sendEvent(response, event.name(), event.id());
-        } else if ("saveRanking".equals(event.name())) {
-            // 클라이언트가 보낸 데이터를 저장
-            Ranking newRanking = (Ranking) event.body();
-            saveOrUpdateRanking(newRanking);
+        if (event.body() instanceof HighScore highScore) {
+            dbSession.upsert(new Ranking(session.getUser(), highScore.score()));
             session.sendEvent(null, event.name(), event.id());
         }
-    }
+        else if (event.body() == null) {
+            List<Ranking> rankings = dbSession
+                .createSelectionQuery("FROM Ranking ORDER BY highScore LIMIT 10", Ranking.class)
+                .getResultList();
 
-    private void saveOrUpdateRanking(Ranking newRanking) {
-        boolean updated = false;
-        for (Ranking ranking : rankings) {
-            if (ranking.userId().equals(newRanking.userId())) {
-                if (newRanking.highScore() > ranking.highScore()) {
-                    ranking.updateScore(newRanking.highScore());
-                }
-                updated = true;
-                break;
-            }
-        }
-        if (!updated) {
-            rankings.add(newRanking);
+            RankingList response = new RankingList(
+                rankings.stream().map(
+                    ranking -> new message.Ranking(
+                        ranking.getUser().getUsername(),
+                        ranking.getHighScore()
+                    )
+                ).toList()
+            );
+            session.sendEvent(response, event.name(), event.id());
         }
     }
 }

@@ -1,33 +1,27 @@
 package entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
+@Getter
+@NoArgsConstructor
 @Entity
+@Table(name = "ranking")
 public class Ranking {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Long id;
 
-    private String userid;
-    private int highscore;
+    @OneToOne
+    @JoinColumn(name="user_id")
+    private User user;
 
-    public Ranking() {}
+    @Column(name="high_score")
+    private int highScore;
 
-    public Ranking(String userid, int highscore) {
-        this.userid = userid;
-        this.highscore = highscore;
+    public Ranking(User user, int highScore) {
+        this.user = user;
+        this.highScore = highScore;
     }
-
-    public int getId() { return id; }
-    public void setId(int id) { this.id = id; }
-
-    public String getUserid() { return userid; }
-    public void setUserid(String userid) { this.userid = userid; }
-
-    public int getHighscore() { return highscore; }
-    public void setHighscore(int highscore) { this.highscore = highscore; }
 }

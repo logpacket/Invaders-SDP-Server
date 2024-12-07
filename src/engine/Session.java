@@ -6,8 +6,8 @@ import engine.event.Body;
 import engine.event.Event;
 import engine.event.EventDispatcher;
 import engine.event.EventHandler;
+import entity.User;
 import lombok.Setter;
-import message.Error;
 import lombok.Getter;
 import middleware.LoggingMiddleware;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,7 +28,7 @@ public class Session implements Runnable {
     private final Logger logger = LoggerFactory.getLogger(Session.class);
     @Getter
     @Setter
-    private long id;
+    private User user;
     @Getter
     private final StatelessSession dbSession;
     private EventDispatcher eventDispatcher;

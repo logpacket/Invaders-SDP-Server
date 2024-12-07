@@ -26,7 +26,7 @@ public class LoginHandler implements EventHandler {
                     .setParameter("password", userData.password())
                     .getSingleResult();
 
-            session.setId(user.getId());
+            session.setUser(user);
             session.sendEvent(null, event.name(), event.id());
         }
         catch (NoResultException e) {
