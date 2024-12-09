@@ -25,8 +25,18 @@ public class RankingHandler implements EventHandler {
 
         if (event.body() instanceof HighScore(int score)) {
             User user = session.get(User.class, playerSession.getId());
-            session.persist(new Ranking(user, score));
-            playerSession.sendEvent(null, event.name(), event.id());
+            Ranking ranking = session.createQuery(
+                    "FROM Ranking r WHERE r.user.id = :userId", Ranking.class)
+                    .setParameter("userId", user.getId())
+                    .uniqueResult();
+
+            if (ranking == null){
+                ranking = new Ranking(user, score);
+                session.persist(ranking);
+            } else {
+                session.merge(new Ranking(user, score));
+                playerSession.sendEvent(null, event.name(), event.id());
+            }
         }
         else if (event.body() == null) {
             List<Ranking> rankings = session
