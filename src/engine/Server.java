@@ -17,7 +17,6 @@ import org.hibernate.SessionFactory;
 import org.hibernate.boot.MetadataSources;
 import org.hibernate.boot.registry.StandardServiceRegistry;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
-import org.hibernate.cfg.Configuration;
 import org.reflections.Reflections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,7 +61,7 @@ public final class Server {
             logger.info("Server started");
             while(serverSocket.isBound()) {
                 Socket socket = serverSocket.accept();
-                executor.submit(new Session(socket, sessionFactory.openStatelessSession(), eventHandlers, bodyClasses));
+                executor.submit(new PlayerSession(socket, sessionFactory.openStatelessSession(), sessionFactory.openSession(), eventHandlers, bodyClasses));
             }
         }
         catch (IOException e) {

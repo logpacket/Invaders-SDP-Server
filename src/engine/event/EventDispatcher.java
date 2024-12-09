@@ -1,6 +1,6 @@
 package engine.event;
 
-import engine.Session;
+import engine.PlayerSession;
 import engine.MiddlewareManager;
 import message.Error;
 import org.slf4j.Logger;
@@ -36,16 +36,16 @@ public class EventDispatcher {
         handlerByEventType.clear();
     }
 
-    public void dispatch(Session session, Event event) {
+    public void dispatch(PlayerSession playerSession, Event event) {
         String eventName = event.name();
         EventHandler handler = handlerByEventType.get(eventName);
         if (handler != null) {
-            EventContext context = new EventContext(session, event);
+            EventContext context = new EventContext(playerSession, event);
             try {
                 middleware.process(context, () -> handler.handle(context));
             } catch (Exception e) {
                 logger.warn("Error in {} handler\n message: {}", eventName, e.getMessage());
-                session.sendEvent(new Error(e.getMessage()), eventName, event.id());
+                playerSession.sendEvent(new Error(e.getMessage()), eventName, event.id());
             }
         }
     }

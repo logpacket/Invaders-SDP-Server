@@ -1,13 +1,15 @@
 package handler;
 
-import engine.Session;
+import engine.PlayerSession;
 import engine.event.Event;
 import engine.event.EventContext;
 import engine.event.EventHandler;
 import engine.event.Handle;
 import entity.Ranking;
+import entity.User;
 import message.HighScore;
 import message.RankingList;
+import org.hibernate.Session;
 import org.hibernate.StatelessSession;
 
 import java.util.List;
@@ -17,16 +19,17 @@ public class RankingHandler implements EventHandler {
 
     @Override
     public void handle(EventContext eventContext) {
-        Session session = eventContext.session();
-        StatelessSession dbSession = session.getDbSession();
+        PlayerSession playerSession = eventContext.playerSession();
+        Session session = playerSession.getStatefulSession();
         Event event = eventContext.event();
 
-        if (event.body() instanceof HighScore highScore) {
-            dbSession.upsert(new Ranking(session.getUser(), highScore.score()));
-            session.sendEvent(null, event.name(), event.id());
+        if (event.body() instanceof HighScore(int score)) {
+            User user = session.get(User.class, playerSession.getId());
+            session.persist(new Ranking(user, score));
+            playerSession.sendEvent(null, event.name(), event.id());
         }
         else if (event.body() == null) {
-            List<Ranking> rankings = dbSession
+            List<Ranking> rankings = session
                 .createSelectionQuery("FROM Ranking ORDER BY highScore LIMIT 10", Ranking.class)
                 .getResultList();
 
@@ -38,7 +41,7 @@ public class RankingHandler implements EventHandler {
                     )
                 ).toList()
             );
-            session.sendEvent(response, event.name(), event.id());
+            playerSession.sendEvent(response, event.name(), event.id());
         }
     }
 }

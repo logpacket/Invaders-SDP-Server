@@ -29,4 +29,8 @@ public class User {
         this.password = user.password();
         this.created = created;
     }
+
+    public User(long id) {
+        this.id = id;
+    }
 }

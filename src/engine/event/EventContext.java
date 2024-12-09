@@ -1,5 +1,5 @@
 package engine.event;
 
-import engine.Session;
+import engine.PlayerSession;
 
-public record EventContext(Session session, Event event) { }
+public record EventContext(PlayerSession playerSession, Event event) { }
