@@ -1,6 +1,6 @@
 package handler;
 
-import engine.Session;
+import engine.PlayerSession;
 import engine.event.Event;
 import engine.event.EventContext;
 import engine.event.EventHandler;
@@ -19,8 +19,8 @@ public class ShopHandler implements EventHandler {
 
     @Override
     public void handle(EventContext eventContext) {
-        Session session = eventContext.session();
-        StatelessSession dbSession = session.getDbSession();
+        PlayerSession session = eventContext.playerSession();
+        StatelessSession dbSession = session.getStatelessSession();
         Event event = eventContext.event();
 
         Wallet walletMessage = (Wallet) event.body();

@@ -72,14 +72,13 @@ public class PlayerSession implements Runnable {
         eventDispatcher.useMiddleware(new LoggingMiddleware());
         try {
             while(!socket.isClosed()) {
-                if (reader.ready()) {
-                    Event event = mapper.readValue(reader, Event.class);
-                    statelessSession.beginTransaction();
-                    statefulSession.beginTransaction();
-                    eventDispatcher.dispatch(this, event);
-                    statelessSession.getTransaction().commit();
-                    statefulSession.getTransaction().commit();
-                }
+                Event event = mapper.readValue(reader, Event.class);
+                statelessSession.beginTransaction();
+                statefulSession.beginTransaction();
+                eventDispatcher.dispatch(this, event);
+                statelessSession.getTransaction().commit();
+                statefulSession.getTransaction().commit();
+                Thread.sleep(100);
             }
         }
         catch (IOException e) {
@@ -107,11 +106,6 @@ public class PlayerSession implements Runnable {
         try{
             if (!eventName.equals("ping"))
                 logger.info("Sending event: {}", eventName);
-//            if (eventName.equals("game") && body instanceof Entities) {
-//                String s = mapper.writeValueAsString(event);
-//                writer.write(s);
-//                writer.flush();
-//            }
             mapper.writeValue(writer, event);
         }
         catch (IOException e) {
