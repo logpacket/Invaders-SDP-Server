@@ -2,15 +2,13 @@ package engine;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
-import engine.event.Body;
-import engine.event.Event;
-import engine.event.EventDispatcher;
-import engine.event.EventHandler;
+import engine.event.*;
 import lombok.Setter;
-import message.Error;
 import lombok.Getter;
+import message.Entities;
 import middleware.LoggingMiddleware;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.hibernate.Session;
 import org.hibernate.StatelessSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,33 +21,37 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-public class Session implements Runnable {
+public class PlayerSession implements Runnable {
     private final Socket socket;
-    private final Logger logger = LoggerFactory.getLogger(Session.class);
+    private final Logger logger = LoggerFactory.getLogger(PlayerSession.class);
     @Getter
     @Setter
     private long id;
     @Getter
-    private final StatelessSession dbSession;
+    private final StatelessSession statelessSession;
+    @Getter
+    private final Session statefulSession;
     private EventDispatcher eventDispatcher;
-    private ObjectMapper mapper;
+    private ConditionalMapper mapper;
     private BufferedReader reader;
     private BufferedWriter writer;
 
 
-    public Session(
+    public PlayerSession(
         Socket socket,
-        StatelessSession dbSession,
+        StatelessSession statelessSession,
+        Session statefulSession,
         Map<String, EventHandler> eventHandlers,
         Set<Class<? extends Body>> bodyClasses
     ) {
         this.socket = socket;
-        this.dbSession = dbSession;
+        this.statelessSession = statelessSession;
+        this.statefulSession = statefulSession;
         try {
-            this.reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-            this.writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
+            this.reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8), 100000);
+            this.writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), 100000);
 
-            mapper = new ObjectMapper();
+            mapper = new ConditionalMapper();
             mapper.disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
             mapper.disable(JsonParser.Feature.AUTO_CLOSE_SOURCE);
 
@@ -72,9 +74,11 @@ public class Session implements Runnable {
             while(!socket.isClosed()) {
                 if (reader.ready()) {
                     Event event = mapper.readValue(reader, Event.class);
-                    dbSession.beginTransaction();
+                    statelessSession.beginTransaction();
+                    statefulSession.beginTransaction();
                     eventDispatcher.dispatch(this, event);
-                    dbSession.getTransaction().commit();
+                    statelessSession.getTransaction().commit();
+                    statefulSession.getTransaction().commit();
                 }
             }
         }
@@ -103,6 +107,11 @@ public class Session implements Runnable {
         try{
             if (!eventName.equals("ping"))
                 logger.info("Sending event: {}", eventName);
+//            if (eventName.equals("game") && body instanceof Entities) {
+//                String s = mapper.writeValueAsString(event);
+//                writer.write(s);
+//                writer.flush();
+//            }
             mapper.writeValue(writer, event);
         }
         catch (IOException e) {

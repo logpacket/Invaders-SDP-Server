@@ -1,6 +1,6 @@
 package handler;
 
-import engine.Session;
+import engine.PlayerSession;
 import engine.event.Event;
 import engine.event.EventContext;
 import engine.event.EventHandler;
@@ -15,8 +15,8 @@ public class LoginHandler implements EventHandler {
 
     @Override
     public void handle(EventContext eventContext) {
-        Session session = eventContext.session();
-        StatelessSession dbSession = session.getDbSession();
+        PlayerSession playerSession = eventContext.playerSession();
+        StatelessSession dbSession = playerSession.getStatelessSession();
         Event event = eventContext.event();
         message.User userData = (message.User) event.body();
 
@@ -26,11 +26,11 @@ public class LoginHandler implements EventHandler {
                     .setParameter("password", userData.password())
                     .getSingleResult();
 
-            session.setId(user.getId());
-            session.sendEvent(null, event.name(), event.id());
+            playerSession.setId(user.getId());
+            playerSession.sendEvent(null, event.name(), event.id());
         }
         catch (NoResultException e) {
-            session.sendEvent(new Error("Invalid Username or Password"), event.name(), event.id());
+            playerSession.sendEvent(new Error("Invalid Username or Password"), event.name(), event.id());
         }
     }
 }
