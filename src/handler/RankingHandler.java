@@ -10,7 +10,6 @@ import entity.User;
 import message.HighScore;
 import message.RankingList;
 import org.hibernate.Session;
-import org.hibernate.StatelessSession;
 
 import java.util.List;
 
@@ -34,7 +33,8 @@ public class RankingHandler implements EventHandler {
                 ranking = new Ranking(user, score);
                 session.persist(ranking);
             } else {
-                session.merge(new Ranking(user, score));
+                ranking.setHighScore(score);
+                session.merge(ranking);
                 playerSession.sendEvent(null, event.name(), event.id());
             }
         }

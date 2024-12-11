@@ -3,6 +3,7 @@ package entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @NoArgsConstructor
@@ -17,6 +18,7 @@ public class Ranking {
     @JoinColumn(name="user_id")
     private User user;
 
+    @Setter
     @Column(name="high_score")
     private int highScore;
 
